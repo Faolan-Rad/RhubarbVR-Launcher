@@ -1,0 +1,52 @@
+{
+  "name": "rhubarbvr-luncher",
+  "version": "1.0.0",
+  "description": "The Luncher and updater for RhubarbVR",
+  "productName": "RhubarbVR",
+  "author": "Faolan",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ./",
+    "pack": "build --dir",
+    "dist": "build"
+  },
+  "build": {
+    "appId": "RhubarbVR",
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "win": {
+      "target": "squirrel",
+      "icon": "build/icon.ico"
+    }
+  },
+  "repository": "",
+  "devDependencies": {
+    "electron": "^2.0.18",
+    "electron-builder": "^20.15.1"
+  },
+  "dependencies": {
+    "ajv": "^6.5.0",
+    "custom-electron-titlebar": "^3.2.6",
+    "express": "^4.16.3",
+    "node": "^8.11.2",
+    "xmlhttprequest": "^1.8.0"
+  }
+}
