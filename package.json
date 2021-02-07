@@ -7,10 +7,16 @@
   "main": "main.js",
   "scripts": {
     "start": "electron ./",
-    "pack": "build --dir",
-    "dist": "build"
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "build": {
+    "protocols": {
+      "name": "rhubarbvr-protocol",
+      "schemes": [
+        "rhubarbvr"
+      ]
+    },
     "appId": "RhubarbVR",
     "dmg": {
       "contents": [
@@ -32,21 +38,33 @@
         "deb"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true
+    },
     "win": {
-      "target": "squirrel",
-      "icon": "build/icon.ico"
+      "icon": "C:\\Users\\TheRa\\Desktop\\New folder (9)\\RhubarbVRICON.png",
+      "target": "NSIS"
     }
   },
   "repository": "",
   "devDependencies": {
-    "electron": "^2.0.18",
-    "electron-builder": "^20.15.1"
+    "electron": "^11.2.3",
+    "electron-builder": "^20.38.0"
   },
   "dependencies": {
-    "ajv": "^6.5.0",
+    "ajv": "^6.12.6",
     "custom-electron-titlebar": "^3.2.6",
-    "express": "^4.16.3",
-    "node": "^8.11.2",
+    "electron-builder-squirrel-windows": "^22.10.4",
+    "express": "^4.17.1",
+    "fs": "0.0.1-security",
+    "https": "^1.0.0",
+    "nedb": "^1.8.0",
+    "node": "^8.17.0",
+    "node-fetch": "^2.6.1",
     "xmlhttprequest": "^1.8.0"
   }
 }

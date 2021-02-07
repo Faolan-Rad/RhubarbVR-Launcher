@@ -1,43 +1,67 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow,Menu} = require('electron');
+const {app, BrowserWindow,Menu,ipcMain} = require('electron');
 const appVersion = require('./package.json').version;
 const appRepo = require('./package.json').repository;
 const os = require('os').platform();
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-
+let  deeplinkingUrl;
+var Datastore = require('nedb')
+  , db = new Datastore({ filename: './db', autoload: true });
+app.setAsDefaultProtocolClient('rhubarbvr');
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
-
-  function updateAlert() {
-    if(os === 'darwin') {
-      const feed = `${appRepo}/dist/github/latest-mac.json`;
-      
-      var xhr = new XMLHttpRequest();
-      
-      xhr.addEventListener("readystatechange", function () {
-        if (this.readyState === 4) {
-          console.log('....xxx....', this.responseText);
+const fetch = require('node-fetch');
+var udateurl = ""
+var lockdown = true;
+let url = "https://main-pearl.now.sh/Updates.json";
+var sender;
+ async function Checkforupdate(){
+  let settings = { method: "Get" };
+  var data = {msg:"Error Loading",
+  hasdownloadedonce:false,
+  needstoupdate:false,
+  lockdown:true,
+  deeplinkingUrl:""
+};
+  await fetch(url, settings)
+      .then(res => res.json())
+      .then((json) => {
+        data.deeplinkingUrl = deeplinkingUrl;
+        data.msg = json.msg;
+        data.lockdown = json.lockdown;
+        lockdown = json.lockdown;
+        if(db.getAllData()[0]==null){return;};
+        data.hasdownloadedonce = true;
+        if(db.getAllData()[0].versionnumber < json.ver){
+          data.needstoupdate = true;
+          udateurl = json.url;
         }
+        data = "" 
       });
-      
-      xhr.open("GET", "https://raw.githubusercontent.com/siwalikm/coffitivity-offline/v1.0.2/.gitignore");
-      
-      xhr.send();
-
-    }
-  }
-
+    return data;
+}
 function createWindow () {
-  var menu = Menu.buildFromTemplate([
+  const template = [
     {
+      label: 'RhubarbVR',
+      submenu: [
+          { role: 'close' }
+        ]
     }
-])
+  ]
+  
+  const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu); 
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 400, height: 600,frame: false});
+  mainWindow = new BrowserWindow({width: 400, height: 600,frame: false,
+webPreferences: {
+    nodeIntegration: true
+}});
   // and load the index.html of the app.
   mainWindow.loadFile('index.html');
+  mainWindow.openDevTools();
+  logEverywhere("createWindow# " + deeplinkingUrl)
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
     // Dereference the window object, usually you would store wifndows
@@ -47,17 +71,31 @@ function createWindow () {
   })
 };
 
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', ()=> {
   createWindow();
-  updateAlert();
   console.log('appVersion', appVersion);
   console.log('appRepo', appRepo);
   console.log('os', os);
 });
 
+app.on('window-all-closed', function () {
+  // On OS X it is common for applications and their menu bar
+  // to stay active until the user quits explicitly with Cmd + Q
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+app.on('activate', function () {
+  // On OS X it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (mainWindow === null) {
+    createWindow()
+  }
+})
 
 
 // Quit when all windows are closed.
@@ -77,5 +115,25 @@ app.on('activate', function () {
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+app.on('open-url', function (event, url) {
+  event.preventDefault()
+  deeplinkingUrl = url
+  logEverywhere("open-url# " + deeplinkingUrl);
+  sender.send("sessionid",deeplinkingUrl);
+  app.quit();
+})
+ipcMain.on('GetUpdates', async (event, arg) => {
+  var localdata = await Checkforupdate()
+  sender = event.sender;
+  event.sender.send("UpdateData",localdata);
+});
+
+ipcMain.on('start', (event, arg) => {
+  
+});
+function logEverywhere(s) {
+  console.log(s)
+  if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.executeJavaScript(`console.log("${s}")`)
+  }
+}
