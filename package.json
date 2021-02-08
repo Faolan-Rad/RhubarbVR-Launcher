@@ -12,7 +12,7 @@
   },
   "build": {
     "protocols": {
-      "name": "rhubarbvr-protocol",
+      "name": "RhubarbVR",
       "schemes": [
         "rhubarbvr"
       ]
@@ -53,18 +53,21 @@
   "repository": "",
   "devDependencies": {
     "electron": "^11.2.3",
-    "electron-builder": "^20.38.0"
+    "electron-builder": "^20.38.0",
+    "electron-mocha": "^10.0.0",
+    "electron-rebuild": "^2.3.5"
   },
   "dependencies": {
     "ajv": "^6.12.6",
-    "custom-electron-titlebar": "^3.2.6",
     "electron-builder-squirrel-windows": "^22.10.4",
+    "electron-dl": "^3.0.2",
     "express": "^4.17.1",
     "fs": "0.0.1-security",
     "https": "^1.0.0",
     "nedb": "^1.8.0",
     "node": "^8.17.0",
     "node-fetch": "^2.6.1",
+    "stream": "0.0.2",
     "xmlhttprequest": "^1.8.0"
   }
 }

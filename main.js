@@ -1,13 +1,46 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow,Menu,ipcMain} = require('electron');
+const {app, BrowserWindow,Menu,ipcMain,protocol,Buffer} = require('electron');
 const appVersion = require('./package.json').version;
 const appRepo = require('./package.json').repository;
 const os = require('os').platform();
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-let  deeplinkingUrl;
+const { PassThrough } = require('stream')
+const {download} = require("electron-dl");
+var needstoupdate = true;
+function _getDeepLinkUrl(argv){
+  for (const arg of argv) {
+      const value = arg;
+      if (value.indexOf("rhubarbvr") !== -1) {
+          return value;
+      }
+  }
+
+  return null;
+}
+let  deeplinkingUrl = _getDeepLinkUrl(process.argv);
+
+function createStream (text) {
+  const rv = new PassThrough()
+  rv.push(text)
+  rv.push(null)
+  return rv
+}
+app.setAsDefaultProtocolClient("rhubarbvr");
 var Datastore = require('nedb')
   , db = new Datastore({ filename: './db', autoload: true });
-app.setAsDefaultProtocolClient('rhubarbvr');
+ const primaryInstance = app.requestSingleInstanceLock();
+ if (!primaryInstance) {
+         app.quit();
+         return;
+ }
+ app.on('second-instance', (event, argv, cwd) => {
+  const url = _getDeepLinkUrl(argv);
+  if (url) {
+    logEverywhere(url);
+
+  }
+  deeplinkingUrl = argv;
+})
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
@@ -31,30 +64,21 @@ var sender;
         data.msg = json.msg;
         data.lockdown = json.lockdown;
         lockdown = json.lockdown;
+        udateurl = json.url;
         if(db.getAllData()[0]==null){return;};
         data.hasdownloadedonce = true;
+        needstoupdate=false;
         if(db.getAllData()[0].versionnumber < json.ver){
           data.needstoupdate = true;
-          udateurl = json.url;
-        }
-        data = "" 
+          needstoupdate=true
+        } 
       });
     return data;
 }
 function createWindow () {
-  const template = [
-    {
-      label: 'RhubarbVR',
-      submenu: [
-          { role: 'close' }
-        ]
-    }
-  ]
-  
-  const menu = Menu.buildFromTemplate(template)
-  Menu.setApplicationMenu(menu); 
+
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 400, height: 600,frame: false,
+  mainWindow = new BrowserWindow({resizable:false,transparent: true,width: 400, height: 450,frame: false,
 webPreferences: {
     nodeIntegration: true
 }});
@@ -71,10 +95,6 @@ webPreferences: {
   })
 };
 
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.on('ready', ()=> {
   createWindow();
   console.log('appVersion', appVersion);
@@ -122,6 +142,7 @@ app.on('open-url', function (event, url) {
   sender.send("sessionid",deeplinkingUrl);
   app.quit();
 })
+
 ipcMain.on('GetUpdates', async (event, arg) => {
   var localdata = await Checkforupdate()
   sender = event.sender;
@@ -129,7 +150,15 @@ ipcMain.on('GetUpdates', async (event, arg) => {
 });
 
 ipcMain.on('start', (event, arg) => {
-  
+  var sender = event.sender;
+  if(needstoupdate){
+ 
+    sender.send("UpdateProsentage",{prsentage:"0%",text:"StartingUpdate"});
+    var onProgress = status => window.webContents.send("UpdateProsentage", {prsentage:`${status}%`,text:`Downloading${status}`});
+    download(mainWindow, udateurl, onProgress)
+        .then(dl => window.webContents.send("UpdateProsentage", {prsentage:`100%`,text:`Done`}));
+  }
+
 });
 function logEverywhere(s) {
   console.log(s)
