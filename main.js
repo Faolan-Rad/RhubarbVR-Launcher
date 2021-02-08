@@ -165,7 +165,6 @@ ipcMain.on('start', (event, arg) => {
     if(error){ sender.send("UpdateProsentage",{prsentage:"0%",text:"error"+error});return;}
     extractupdate(sender,
   () => {
-    fs.unlinkSync(rhubarbfolder+"\\data\\Update");
     store.set('ver',vernumbar);
     openrhubarb(arg,sender);
   })
