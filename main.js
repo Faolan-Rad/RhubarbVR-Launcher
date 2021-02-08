@@ -1,12 +1,18 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow,Menu,ipcMain,protocol,Buffer} = require('electron');
+const {app, BrowserWindow,Menu,ipcMain,protocol,Buffer, session} = require('electron');
 const appVersion = require('./package.json').version;
 const appRepo = require('./package.json').repository;
 const os = require('os').platform();
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const { PassThrough } = require('stream')
-const {download} = require("electron-dl");
+const request = require('request');
+const fs = require('fs')
 var needstoupdate = true;
+var vernumbar = 0;
+const Store = require('electron-store');
+const rhubarbfolder = app.getPath('userData');
+const store = new Store();
+
 function _getDeepLinkUrl(argv){
   for (const arg of argv) {
       const value = arg;
@@ -26,8 +32,6 @@ function createStream (text) {
   return rv
 }
 app.setAsDefaultProtocolClient("rhubarbvr");
-var Datastore = require('nedb')
-  , db = new Datastore({ filename: './db', autoload: true });
  const primaryInstance = app.requestSingleInstanceLock();
  if (!primaryInstance) {
          app.quit();
@@ -60,15 +64,16 @@ var sender;
   await fetch(url, settings)
       .then(res => res.json())
       .then((json) => {
+        vernumbar = json.ver
         data.deeplinkingUrl = deeplinkingUrl;
         data.msg = json.msg;
         data.lockdown = json.lockdown;
         lockdown = json.lockdown;
         udateurl = json.url;
-        if(db.getAllData()[0]==null){return;};
+        if(store.get('ver') == null){return;};
         data.hasdownloadedonce = true;
         needstoupdate=false;
-        if(db.getAllData()[0].versionnumber < json.ver){
+        if(store.get('ver') < json.ver){
           data.needstoupdate = true;
           needstoupdate=true
         } 
@@ -84,7 +89,6 @@ webPreferences: {
 }});
   // and load the index.html of the app.
   mainWindow.loadFile('index.html');
-  mainWindow.openDevTools();
   logEverywhere("createWindow# " + deeplinkingUrl)
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
@@ -154,9 +158,21 @@ ipcMain.on('start', (event, arg) => {
   if(needstoupdate){
  
     sender.send("UpdateProsentage",{prsentage:"0%",text:"StartingUpdate"});
-    var onProgress = status => window.webContents.send("UpdateProsentage", {prsentage:`${status}%`,text:`Downloading${status}`});
-    download(mainWindow, udateurl, onProgress)
-        .then(dl => window.webContents.send("UpdateProsentage", {prsentage:`100%`,text:`Done`}));
+    if (!fs.existsSync(rhubarbfolder+"\\data")){
+      fs.mkdirSync(rhubarbfolder+"\\data");
+    }
+    download(udateurl,rhubarbfolder+"\\data\\Update",(error,msg)=>{
+    if(error){ sender.send("UpdateProsentage",{prsentage:"0%",text:"error"+error});return;}
+    extractupdate(sender,
+  () => {
+    fs.unlinkSync(rhubarbfolder+"\\data\\Update");
+    store.set('ver',vernumbar);
+    openrhubarb(arg,sender);
+  })
+
+    },sender);
+  }else{
+    openrhubarb(arg,sender);
   }
 
 });
@@ -166,3 +182,106 @@ function logEverywhere(s) {
       mainWindow.webContents.executeJavaScript(`console.log("${s}")`)
   }
 }
+const download = (url, filename, callback,sender) => {
+  console.log(filename)
+
+  const file = fs.createWriteStream(filename);
+  let receivedBytes = 0
+  var totalBytes = 0;
+
+  // Send request to the given URL
+  request.get(url)
+  .on('response', (response) => {
+      if (response.statusCode !== 200) {
+          return callback('Response status was ' + response.statusCode);
+      }
+      totalBytes = response.headers['content-length'];
+  })
+  .on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      var persent = Math.round((receivedBytes/totalBytes)*100);
+      if(mainWindow){
+        sender.send("UpdateProsentage",{prsentage:`${persent}%`,text:`Downloading:${persent}%`});
+      }
+  })
+  .pipe(file)
+  .on('error', (err) => {
+    //fs.unlink(filename);
+    sender = null;
+    return callback(err.message,null);
+  });
+
+  file.on('finish', () => {
+      file.close(callback);
+      return callback(null,true)
+  });
+
+  file.on('error', (err) => {
+      fs.unlink(filename);
+      return callback(err.message,null);
+  });
+}
+
+const onezip = require('onezip');
+const to = rhubarbfolder + '\\Game';
+const from = rhubarbfolder+"\\data\\Update";
+function extractupdate(sender,ree){
+let extract = onezip.extract(from, to);
+
+extract.on('file', (name) => {
+    console.log(name);
+});
+
+extract.on('start', (percent) => {
+    console.log('extracting started');
+    sender.send("UpdateProsentage",{prsentage:`${0}%`,text:`Extract Started`});
+});
+
+extract.on('progress', (percent) => {
+    sender.send("UpdateProsentage",{prsentage:`${percent}%`,text:`Extracting:${percent}%`});
+
+});
+
+extract.on('error', (error) => {
+    console.error(error);
+    sender.send("UpdateProsentage",{prsentage:`${0}%`,text:`Error`+error});
+});
+
+extract.on('end', ree);
+}
+
+const { execFile } = require('child_process');
+function openrhubarb(arg,sender){
+  sender.send("UpdateProsentage",{prsentage:"100%",text:"StartingRhubarbVR"})
+  var exe = rhubarbfolder+"\\Game\\RhubarbVR.exe"
+  var args = [];
+  if(arg == "ScreenNoHMD"){
+    args.push("-NOHMD");
+  }
+  if(arg == "VR"){
+    args.push("-RhubarbStartVR");
+  }
+  var sessionid = "";
+  if(deeplinkingUrl != null){
+    var start = deeplinkingUrl.indexOf('session=')
+    var end = deeplinkingUrl.indexOf(' ',start);
+    if(start != -1){
+    if(end==-1){
+      sessionid = deeplinkingUrl.substring(start,end);
+    }else{
+      sessionid = deeplinkingUrl.substring(start,deeplinkingUrl.length - start);
+    }
+    args.push("-session "+sessionid)
+    }
+  }
+  execFile(exe, args, function(err, data) {
+    if(err) {
+      sender.send("UpdateProsentage",{prsentage:`${0}%`,text:`Error`+err});
+    } 
+    else 
+    console.log(data.toString());                     
+    app.quit();
+  }); 
+}
+
+

@@ -59,14 +59,19 @@
   },
   "dependencies": {
     "ajv": "^6.12.6",
+    "child_process": "^1.0.2",
     "electron-builder-squirrel-windows": "^22.10.4",
     "electron-dl": "^3.0.2",
+    "electron-store": "^7.0.1",
     "express": "^4.17.1",
     "fs": "0.0.1-security",
     "https": "^1.0.0",
     "nedb": "^1.8.0",
     "node": "^8.17.0",
     "node-fetch": "^2.6.1",
+    "onezip": "^5.0.0",
+    "path": "^0.12.7",
+    "request": "^2.88.2",
     "stream": "0.0.2",
     "xmlhttprequest": "^1.8.0"
   }
